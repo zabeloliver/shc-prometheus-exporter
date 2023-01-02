@@ -12,24 +12,15 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
-	"time"
 
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
+	"gopkg.in/yaml.v2"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
-
-// shc config
-const shcIp = "169.254.127.236"
-const shcApiUrl string = "https://" + shcIp + ":8444/smarthome"
-const shcPollUrl string = "https://" + shcIp + ":8444/remote/json-rpc"
-const crtName string = "client-cert.pem"
-const keyName string = "client-key.pem"
-const port string = "9123"
-const pollTimeOut = 30
 
 type DeviceRoomMap map[string]string
 
@@ -92,6 +83,7 @@ func getRooms() []Room {
 	if err != nil {
 		log.Fatal(err)
 	}
+	sugar.Info("Get List of Rooms: ", len(rooms))
 	return rooms
 }
 
@@ -104,35 +96,15 @@ func getDevices() []Device {
 	if err != nil {
 		log.Fatal(err)
 	}
+	sugar.Info("Get List of Devices: ", len(devices))
 	return devices
-}
-
-func getThermostats(devices []Device, rooms []Room) []Thermostat {
-	var thermostats []Thermostat
-	for _, element := range devices {
-		if element.DeviceModel == "BWTH" {
-			idx := slices.IndexFunc(rooms, func(c Room) bool { return c.Id == element.Room })
-			thermostat := Thermostat{
-				Id:   element.Id,
-				Room: rooms[idx].Name,
-			}
-			thermostats = append(thermostats, thermostat)
-		}
-	}
-	return thermostats
-}
-
-func getThermostatsState(thermostats []Thermostat) {
-	for idx := range thermostats {
-		thermostats[idx].getTemperature()
-		thermostats[idx].getHumidity()
-	}
 }
 
 type metrics struct {
 	roomTemperature *prometheus.GaugeVec
 	roomHumidity    *prometheus.GaugeVec
 	switchState     *prometheus.GaugeVec
+	shutterLevel    *prometheus.GaugeVec
 }
 
 func NewMetrics(reg prometheus.Registerer) *metrics {
@@ -157,10 +129,19 @@ func NewMetrics(reg prometheus.Registerer) *metrics {
 			},
 			[]string{"id", "room"},
 		),
+		shutterLevel: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "shutter_level",
+				Help: "Current shutter level.",
+			},
+			[]string{"id", "room"},
+		),
 	}
 	reg.MustRegister(m.roomTemperature)
 	reg.MustRegister(m.roomHumidity)
 	reg.MustRegister(m.switchState)
+	reg.MustRegister(m.shutterLevel)
+
 	return m
 }
 
@@ -194,7 +175,7 @@ func subscripe() {
 	id := rpc.Result
 
 	// prefill rpc-bodies
-	pollBody.Params = []any{id, pollTimeOut}
+	pollBody.Params = []any{id, conf.Shc.Polltimeout}
 	unsubscribeBody.Params = []any{id}
 	sugar.Info("Subscribtion ID: ", id)
 }
@@ -263,20 +244,25 @@ func poll(metrics *metrics) {
 					if strings.HasPrefix(event.DeviceId, "hdm:") {
 						r := deviceMapping[event.DeviceId]
 						switch event.Id {
+						case "ShutterControl":
+							{
+								sugar.Infof("%s %s", event.Id, event.DeviceId, " State: ", event.State["level"], " Room: ", r)
+								metrics.shutterLevel.WithLabelValues(event.DeviceId, r).Set(event.State["level"].(float64))
+							}
 						case "HumidityLevel":
 							{
-								sugar.Info("%s %s", event.Id, event.DeviceId, " State: ", event.State["humidity"], " Room: ", r)
+								sugar.Infof("%s %s, Humidity: %f, Room: %s", event.Id, event.DeviceId, event.State["humidity"], r)
 								metrics.roomHumidity.WithLabelValues(event.DeviceId, r).Set(event.State["humidity"].(float64))
 							}
 						case "TemperatureLevel":
 							{
-								sugar.Info(event.Id, event.DeviceId, " State: ", event.State["temperature"], " Room: ", r)
+								sugar.Infof("%s %s, Temperature: %f, Room: %s", event.Id, event.DeviceId, event.State["temperature"], r)
 								metrics.roomTemperature.WithLabelValues(event.DeviceId, r).Set(event.State["temperature"].(float64))
 							}
 						case "PowerSwitch":
 							{
 								s := event.State["switchState"]
-								sugar.Info("%s %s", event.Id, event.DeviceId, " State: ", s, " Room: ", r)
+								sugar.Infof("%s %s", event.Id, event.DeviceId, " State: ", s, " Room: ", r)
 								if s == "ON" {
 									metrics.switchState.WithLabelValues(event.DeviceId, r).Set(1)
 								} else {
@@ -289,20 +275,6 @@ func poll(metrics *metrics) {
 					}
 				}
 			}
-		}
-	}()
-}
-
-func updateMetrics(thermostats []Thermostat, metrics *metrics) {
-	sugar.Info("Starting background fetching")
-	go func() {
-		for {
-			getThermostatsState(thermostats)
-			for _, element := range thermostats {
-				metrics.roomTemperature.WithLabelValues(element.Id, element.Room).Set(element.Temperature)
-				metrics.roomHumidity.WithLabelValues(element.Id, element.Room).Set(element.Humidity)
-			}
-			time.Sleep(5 * time.Second)
 		}
 	}()
 }
@@ -326,12 +298,32 @@ var (
 	pollBody        JsonRPC = JsonRPC{Jsonrpc: "2.0", Method: "RE/longPoll"}
 	deviceMapping   DeviceRoomMap
 	apiClient       *http.Client
+	conf            config
+	shcApiUrl       string
+	shcPollUrl      string
 )
 
 func main() {
 	logger, _ = zap.NewDevelopment()
 	defer logger.Sync() // flushes buffer, if any
 	sugar = logger.Sugar()
+
+	// read config
+	configYaml, err := os.ReadFile("config.yaml")
+	if err != nil {
+		sugar.Warn(err)
+		sugar.Info("No config.yaml found. Loading default-Config")
+		conf = NewDefaultConfig()
+	} else {
+		conf = config{}
+		err := yaml.Unmarshal([]byte(configYaml), &conf)
+		if err != nil {
+			sugar.Fatalf("error: %v", err)
+		}
+		sugar.Info("Loading config-Yaml: ", conf)
+	}
+	shcApiUrl = "https://" + conf.Shc.Ip + ":8444/smarthome"
+	shcPollUrl = "https://" + conf.Shc.Ip + ":8444/remote/json-rpc"
 
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
@@ -343,12 +335,12 @@ func main() {
 
 	sugar.Info("Starting Application")
 	sugar.Info("Reading Crt-File")
-	crt, err := os.ReadFile(crtName)
+	crt, err := os.ReadFile(conf.Filenames.Crt)
 	if err != nil {
 		sugar.Panic(err)
 	}
 	sugar.Info("Reading Key-File")
-	key, err := os.ReadFile(keyName)
+	key, err := os.ReadFile(conf.Filenames.Key)
 	if err != nil {
 		sugar.Panic(err)
 	}
@@ -380,14 +372,7 @@ func main() {
 	m := NewMetrics(reg)
 
 	rooms := getRooms()
-	sugar.Info("Fetching Rooms: ", len(rooms))
-
 	devices := getDevices()
-	sugar.Info("Fetching Devices: ", len(devices))
-
-	thermos := getThermostats(devices, rooms)
-	sugar.Info("Fetching Thermostats: ", len(thermos))
-
 	deviceMapping = createMapping(rooms, devices)
 
 	//updateMetrics(client, thermos, m)
@@ -397,7 +382,7 @@ func main() {
 	// Expose metrics and custom registry via an HTTP server
 	// using the HandleFor function. "/metrics" is the usual endpoint for that.
 	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{Registry: reg}))
-	err = http.ListenAndServe(":"+port, nil)
+	err = http.ListenAndServe(":"+conf.Metrics.Port, nil)
 	if err != nil {
 		sugar.Fatal(err)
 	}
