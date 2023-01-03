@@ -1,3 +1,5 @@
+[![Go](https://github.com/zabeloliver/shc-prometheus-exporter/actions/workflows/go.yml/badge.svg)](https://github.com/zabeloliver/shc-prometheus-exporter/actions/workflows/go.yml)  
+
 # shc-prometheus-exporter
 Exports Bosch SHC Values to be scrapped by Prometheus.
 
