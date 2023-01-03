@@ -21,8 +21,17 @@ jobs:
       with:
         go-version: 1.19
 
-    - name: Build
-      run: go build -v ./...
-
+    - name: Build Linux
+      run: env GOOS=linux GOARCH=amd64 go build -v ./...
+    
+    - name: Build Windows
+      run: env GOOS=windows GOARCH=amd64 go build -v ./...
+    
+    - name: Build Apple Intel
+      run: env GOOS=darwin GOARCH=amd64 go build -v ./...
+    
+    - name: Build Apple ARM
+      run: env GOOS=darwin GOARCH=arm go build -v ./...
+      
     - name: Test
       run: go test -v ./...
