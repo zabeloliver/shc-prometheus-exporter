@@ -1,0 +1,10 @@
+filenames:
+  crt: client-cert.pem
+  key: client-key.pem
+
+shc:
+  ip: 192.168.128.10
+  pollTimeout: 60
+
+metrics:
+  port: 9123
