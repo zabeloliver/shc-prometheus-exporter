@@ -101,10 +101,12 @@ func getDevices() []Device {
 }
 
 type metrics struct {
-	roomTemperature *prometheus.GaugeVec
-	roomHumidity    *prometheus.GaugeVec
-	switchState     *prometheus.GaugeVec
-	shutterLevel    *prometheus.GaugeVec
+	roomTemperature   *prometheus.GaugeVec
+	roomHumidity      *prometheus.GaugeVec
+	switchState       *prometheus.GaugeVec
+	shutterLevel      *prometheus.GaugeVec
+	energyConsumption *prometheus.GaugeVec
+	powerConsumption  *prometheus.GaugeVec
 }
 
 func NewMetrics(reg prometheus.Registerer) *metrics {
@@ -136,12 +138,27 @@ func NewMetrics(reg prometheus.Registerer) *metrics {
 			},
 			[]string{"id", "room"},
 		),
+		energyConsumption: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "total_power_consumption",
+				Help: "Total energy Consumption.",
+			},
+			[]string{"id", "room"},
+		),
+		powerConsumption: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "actual_power_consumption",
+				Help: "Actual energy consumption.",
+			},
+			[]string{"id", "room"},
+		),
 	}
 	reg.MustRegister(m.roomTemperature)
 	reg.MustRegister(m.roomHumidity)
 	reg.MustRegister(m.switchState)
 	reg.MustRegister(m.shutterLevel)
-
+	reg.MustRegister(m.energyConsumption)
+	reg.MustRegister(m.powerConsumption)
 	return m
 }
 
@@ -244,9 +261,15 @@ func poll(metrics *metrics) {
 					if strings.HasPrefix(event.DeviceId, "hdm:") {
 						r := deviceMapping[event.DeviceId]
 						switch event.Id {
+						case "PowerMeter":
+							{
+								sugar.Infof("%s %s Total: %f, Actual: %f, Room: %s", event.Id, event.DeviceId, event.State["energyConsumption"], event.State["powerConsumption"], r)
+								metrics.energyConsumption.WithLabelValues(event.DeviceId, r).Set(event.State["energyConsumption"].(float64))
+								metrics.powerConsumption.WithLabelValues(event.DeviceId, r).Set(event.State["powerConsumption"].(float64))
+							}
 						case "ShutterControl":
 							{
-								sugar.Infof("%s %s", event.Id, event.DeviceId, " State: ", event.State["level"], " Room: ", r)
+								sugar.Infof("%s %s ShutterLevel: %f, Room: %s", event.Id, event.DeviceId, event.State["level"], r)
 								metrics.shutterLevel.WithLabelValues(event.DeviceId, r).Set(event.State["level"].(float64))
 							}
 						case "HumidityLevel":
@@ -262,7 +285,7 @@ func poll(metrics *metrics) {
 						case "PowerSwitch":
 							{
 								s := event.State["switchState"]
-								sugar.Infof("%s %s", event.Id, event.DeviceId, " State: ", s, " Room: ", r)
+								sugar.Infof("%s %s, State: %s, Room: %s", event.Id, event.DeviceId, s, r)
 								if s == "ON" {
 									metrics.switchState.WithLabelValues(event.DeviceId, r).Set(1)
 								} else {

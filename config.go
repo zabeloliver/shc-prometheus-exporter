@@ -18,7 +18,7 @@ func NewDefaultConfig() (c config) {
 	c = config{}
 	c.Filenames.Crt = "client-crt.pem"
 	c.Filenames.Key = "client-key.pem"
-	c.Shc.Ip = "1.2.3.4"
+	c.Shc.Ip = "localhost"
 	c.Shc.Polltimeout = 30
 	c.Metrics.Port = "9123"
 	return
