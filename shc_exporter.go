@@ -6,12 +6,14 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
@@ -38,6 +40,12 @@ type JsonRPCResult struct {
 type PollResult struct {
 	Jsonrpc string        `json:"jsonrpc"`
 	Result  []DeviceEvent `json:"result"`
+	Error   JsonRpcError  `json:"error,omitempty"`
+}
+
+type JsonRpcError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
 }
 
 func (thermostat *Thermostat) getTemperature() {
@@ -242,9 +250,11 @@ func poll(metrics *metrics) {
 
 			res, err := apiClient.Post(shcPollUrl, "application/json", bodyReader)
 			if err != nil {
-				sugar.Panic(err)
+				sugar.Error(err)
+				// wait some time before trying a new request
+				time.Sleep(5 * time.Second)
+				continue
 			}
-			defer res.Body.Close()
 
 			body, err := ioutil.ReadAll(res.Body)
 			if err != nil {
@@ -297,6 +307,13 @@ func poll(metrics *metrics) {
 						}
 					}
 				}
+			} else if results[0].Error.Code != 0 {
+				sugar.Error(results)
+				sugar.Info("Somehow, there is an issue, when the polling ID is invalid, during the polling.")
+				sugar.Info("The returned error from SHC is empty without message and subsequent calls will hang. So this is an workaround where we generate a new polling ID.")
+				time.Sleep(5 * time.Second)
+				// resubscripe
+				subscripe()
 			}
 		}
 	}()
@@ -352,6 +369,7 @@ func main() {
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-c
+		sugar.Info("Catch Keyboard interrupt")
 		unsubscripe()
 		os.Exit(1)
 	}()
@@ -381,7 +399,12 @@ func main() {
 				Certificates:       []tls.Certificate{cert},
 				InsecureSkipVerify: true,
 			},
+			TLSHandshakeTimeout: 10 * time.Second,
+			Dial: (&net.Dialer{
+				Timeout: 5 * time.Second,
+			}).Dial,
 		},
+		Timeout: 2 * time.Duration(conf.Shc.Polltimeout) * time.Second,
 	}
 
 	sugar.Info("Creating Metrics-Registry")
