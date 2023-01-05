@@ -343,8 +343,16 @@ var (
 	shcPollUrl      string
 )
 
+func NewLogger() (*zap.Logger, error) {
+	cfg := zap.NewProductionConfig()
+	cfg.OutputPaths = []string{
+		"shc_exporter.log",
+	}
+	return cfg.Build()
+}
+
 func main() {
-	logger, _ = zap.NewDevelopment()
+	logger, _ := NewLogger()
 	defer logger.Sync() // flushes buffer, if any
 	sugar = logger.Sugar()
 
