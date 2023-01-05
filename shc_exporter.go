@@ -346,7 +346,7 @@ var (
 func NewLogger() (*zap.Logger, error) {
 	cfg := zap.NewProductionConfig()
 	cfg.OutputPaths = []string{
-		"shc_exporter.log",
+		"stdout", "shc_exporter.log",
 	}
 	return cfg.Build()
 }
