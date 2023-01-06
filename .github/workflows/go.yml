@@ -39,7 +39,7 @@ jobs:
             output_name+='.exe'
           fi	
           
-          env GOOS=$GOOS GOARCH=$GOARCH go build -o $output_name $package
+          env GOOS=$GOOS GOARCH=$GOARCH go build -o bin/$output_name $package
           if [ $? -ne 0 ]; then
               echo 'An error has occurred! Aborting the script execution...'
             exit 1
@@ -48,7 +48,7 @@ jobs:
         ls -la
     - uses: actions/upload-artifact@v3
       with:
-        name: my-artifact
+        name: shc-artifacts
         path: |
-          shc_exporter*
+          bin/*
         if-no-files-found: warn
