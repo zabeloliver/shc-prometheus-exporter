@@ -22,7 +22,7 @@ jobs:
         go-version: 1.19
         cache: true
 
-    - name: Build Linux
+    - name: Build Executables
       run: | 
         #!/usr/bin/env bash
         package_name="shc-exporter"
@@ -45,3 +45,10 @@ jobs:
             exit 1
           fi
         done
+        ls -la
+    - uses: actions/upload-artifact@v3
+      with:
+        name: my-artifact
+        path: |
+          shc_exporter*
+        if-no-files-found: warn
