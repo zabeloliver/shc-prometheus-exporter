@@ -4,11 +4,11 @@
 Exports Bosch SHC Values to be scrapped by Prometheus.
 
 ## Todos (Order does not imply priority)
-[] Code restructoring
-[] Include Bosch CA Certificate
-[] Add more Events
-[] Add CLI-Args parallel to the `config.yaml` as well as support for Env-Vars
-[] Create Github Release-Action
+[ ] Code restructoring  
+[ ] Include Bosch CA Certificate  
+[ ] Add more Events  
+[ ] Add CLI-Args parallel to the `config.yaml` as well as support for Env-Vars  
+[ ] Create Github Release-Action  
 
 
 ## Usage
