@@ -1,4 +1,4 @@
-module shc_exporter
+module github.com/zabeloliver/shc-prometheus-exporter
 
 go 1.19
 
