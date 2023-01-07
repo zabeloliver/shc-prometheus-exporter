@@ -1,4 +1,4 @@
-module shc/shc_exporter
+module shc_exporter
 
 go 1.19
 
