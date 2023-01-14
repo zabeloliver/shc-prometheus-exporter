@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -17,11 +17,11 @@ import (
 
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
-	"gopkg.in/yaml.v2"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/spf13/viper"
 )
 
 type DeviceRoomMap map[string]string
@@ -48,23 +48,6 @@ type JsonRpcError struct {
 	Message string `json:"message"`
 }
 
-func (thermostat *Thermostat) getTemperature() {
-	state := StateTemperature{}
-	json.Unmarshal(getDeviceService(thermostat.Id, "TemperatureLevel"), &state)
-	thermostat.Temperature = state.Value
-}
-
-func (thermostat *Thermostat) getHumidity() {
-	state := StateHumidity{}
-	json.Unmarshal(getDeviceService(thermostat.Id, "HumidityLevel"), &state)
-	thermostat.Humidity = state.Value
-}
-
-func getDeviceService(deviceId string, serviceId string) []byte {
-	path, _ := url.JoinPath("devices", deviceId, "services", serviceId)
-	return getResourcePath(path)
-}
-
 func getResourcePath(path string) []byte {
 	// Request /hello via the created HTTPS client over port 8443 via GET
 	url, _ := url.JoinPath(shcApiUrl, path)
@@ -75,7 +58,7 @@ func getResourcePath(path string) []byte {
 
 	// Read the response body
 	defer r.Body.Close()
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -108,68 +91,6 @@ func getDevices() []Device {
 	return devices
 }
 
-type metrics struct {
-	roomTemperature   *prometheus.GaugeVec
-	roomHumidity      *prometheus.GaugeVec
-	switchState       *prometheus.GaugeVec
-	shutterLevel      *prometheus.GaugeVec
-	energyConsumption *prometheus.GaugeVec
-	powerConsumption  *prometheus.GaugeVec
-}
-
-func NewMetrics(reg prometheus.Registerer) *metrics {
-	m := &metrics{
-		roomTemperature: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Name: "room_temperature",
-				Help: "Current room temperature in degree celsius.",
-			},
-			[]string{"id", "room"}),
-		roomHumidity: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Name: "room_humidity",
-				Help: "Current room humidity in percent.",
-			},
-			[]string{"id", "room"},
-		),
-		switchState: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Name: "switch_state",
-				Help: "Current state of switch.",
-			},
-			[]string{"id", "room"},
-		),
-		shutterLevel: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Name: "shutter_level",
-				Help: "Current shutter level.",
-			},
-			[]string{"id", "room"},
-		),
-		energyConsumption: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Name: "total_power_consumption",
-				Help: "Total energy Consumption.",
-			},
-			[]string{"id", "room"},
-		),
-		powerConsumption: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Name: "actual_power_consumption",
-				Help: "Actual energy consumption.",
-			},
-			[]string{"id", "room"},
-		),
-	}
-	reg.MustRegister(m.roomTemperature)
-	reg.MustRegister(m.roomHumidity)
-	reg.MustRegister(m.switchState)
-	reg.MustRegister(m.shutterLevel)
-	reg.MustRegister(m.energyConsumption)
-	reg.MustRegister(m.powerConsumption)
-	return m
-}
-
 func subscripe() {
 	sugar.Info("Getting Polling ID")
 	payload, err := json.Marshal(subscribeBody)
@@ -188,7 +109,7 @@ func subscripe() {
 	}
 	defer res.Body.Close()
 
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		sugar.Panic(err)
 	}
@@ -200,7 +121,7 @@ func subscripe() {
 	id := rpc.Result
 
 	// prefill rpc-bodies
-	pollBody.Params = []any{id, conf.Shc.Polltimeout}
+	pollBody.Params = []any{id, viper.GetString("shc.polltimeout")}
 	unsubscribeBody.Params = []any{id}
 	sugar.Info("Subscribtion ID: ", id)
 }
@@ -222,7 +143,7 @@ func unsubscripe() {
 	}
 	defer res.Body.Close()
 
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		sugar.Panic(err)
 	}
@@ -256,7 +177,7 @@ func poll(metrics *metrics) {
 				continue
 			}
 
-			body, err := ioutil.ReadAll(res.Body)
+			body, err := io.ReadAll(res.Body)
 			if err != nil {
 				sugar.Error(err)
 				continue
@@ -307,6 +228,9 @@ func poll(metrics *metrics) {
 						default:
 							sugar.Info(event)
 						}
+					} else {
+						sugar.Info(event)
+
 					}
 				}
 			} else if results[0].Error.Code != 0 {
@@ -340,7 +264,6 @@ var (
 	pollBody        JsonRPC = JsonRPC{Jsonrpc: "2.0", Method: "RE/longPoll"}
 	deviceMapping   DeviceRoomMap
 	apiClient       *http.Client
-	conf            config
 	shcApiUrl       string
 	shcPollUrl      string
 )
@@ -353,27 +276,43 @@ func NewLogger() (*zap.Logger, error) {
 	return cfg.Build()
 }
 
-func main() {
-	logger, _ := NewLogger()
-	defer logger.Sync() // flushes buffer, if any
-	sugar = logger.Sugar()
-
-	// read config
-	configYaml, err := os.ReadFile("config.yaml")
-	if err != nil {
-		sugar.Warn(err)
-		sugar.Info("No config.yaml found. Loading default-Config")
-		conf = NewDefaultConfig()
-	} else {
-		conf = config{}
-		err := yaml.Unmarshal([]byte(configYaml), &conf)
-		if err != nil {
-			sugar.Fatalf("error: %v", err)
-		}
-		sugar.Info("Loading config-Yaml: ", conf)
+func initConfig() {
+	// set defaults
+	viper.SetDefault("filenames.crt", "client-cert.pem")
+	viper.SetDefault("filenames.key", "client-key.pem")
+	viper.SetDefault("shc.ip", "localhost")
+	viper.SetDefault("shc.polltimeout", 30)
+	viper.SetDefault("metrics.port", 9123)
+	replacer := strings.NewReplacer(".", "_")
+	viper.SetEnvKeyReplacer(replacer)
+	viper.AddConfigPath(".")
+	viper.AutomaticEnv()
+	viper.SetEnvPrefix("shc")
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.SetConfigType("yml")
+	err := viper.ReadInConfig() // Find and read the config file
+	if err != nil {             // Handle errors reading the config file
+		sugar.Errorf("fatal error config file: %w. Using Default config", err)
 	}
-	shcApiUrl = "https://" + conf.Shc.Ip + ":8444/smarthome"
-	shcPollUrl = "https://" + conf.Shc.Ip + ":8444/remote/json-rpc"
+	sugar.Infof("Configuration: %v", viper.AllSettings())
+}
+
+func initLogger() {
+	logger, _ = NewLogger()
+	sugar = logger.Sugar()
+}
+
+func init() {
+	initLogger()
+	initConfig()
+}
+
+func main() {
+	defer logger.Sync() // flushes buffer, if any
+
+	shcApiUrl = "https://" + viper.GetString("shc.ip") + ":8444/smarthome"
+	shcPollUrl = "https://" + viper.GetString("shc.ip") + ":8444/remote/json-rpc"
 
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
@@ -386,12 +325,12 @@ func main() {
 
 	sugar.Info("Starting Application")
 	sugar.Info("Reading Crt-File")
-	crt, err := os.ReadFile(conf.Filenames.Crt)
+	crt, err := os.ReadFile(viper.GetString("filenames.crt"))
 	if err != nil {
 		sugar.Panic(err)
 	}
 	sugar.Info("Reading Key-File")
-	key, err := os.ReadFile(conf.Filenames.Key)
+	key, err := os.ReadFile(viper.GetString("filenames.key"))
 	if err != nil {
 		sugar.Panic(err)
 	}
@@ -414,7 +353,7 @@ func main() {
 				Timeout: 5 * time.Second,
 			}).Dial,
 		},
-		Timeout: 2 * time.Duration(conf.Shc.Polltimeout) * time.Second,
+		Timeout: 2 * time.Duration(viper.GetInt("shc.polltimeout")) * time.Second,
 	}
 
 	sugar.Info("Creating Metrics-Registry")
@@ -425,20 +364,22 @@ func main() {
 	reg.Register(collectors.NewBuildInfoCollector())
 	reg.Register(collectors.NewGoCollector())
 	// Create new metrics and register them using the custom registry.
-	m := NewMetrics(reg)
+	//m := NewMetrics(reg)
 
 	rooms := getRooms()
 	devices := getDevices()
 	deviceMapping = createMapping(rooms, devices)
 
 	//updateMetrics(client, thermos, m)
-	subscripe()
-	poll(m)
+	//subscripe()
+	//poll(m)
 
 	// Expose metrics and custom registry via an HTTP server
 	// using the HandleFor function. "/metrics" is the usual endpoint for that.
 	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{Registry: reg}))
-	err = http.ListenAndServe(":"+conf.Metrics.Port, nil)
+	metricsPath := ":" + viper.GetString("metrics.port")
+	sugar.Infof("Metrics served at: %v", metricsPath)
+	err = http.ListenAndServe(metricsPath, nil)
 	if err != nil {
 		sugar.Fatal(err)
 	}
