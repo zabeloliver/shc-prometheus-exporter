@@ -12,8 +12,8 @@ Exports Bosch SHC Values to be scrapped by Prometheus.
 
 
 ## Usage
-1. Install shc-prometheus-exporter
-  a. Option 1: Download pre-build executable for your platform from the latest release
+1. Install shc-prometheus-exporter  
+  a. Option 1: Download pre-build executable for your platform from the latest release  
   b. Option 2: If you have already go installed, you can install it by go install github.com/zabeloliver/shc-prometheus-exporter@latest
 2. Create a new client within your SHC according to https://github.com/BoschSmartHome/bosch-shc-api-docs/tree/master/postman
 3. Create a `config.yaml` with your settings:  
