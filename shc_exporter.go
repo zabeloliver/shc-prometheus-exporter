@@ -259,13 +259,13 @@ func poll(metrics *metrics) {
 			body, err := ioutil.ReadAll(res.Body)
 			if err != nil {
 				sugar.Error(err)
-				time.Sleep(5 * time.Second)
 				continue
 			}
 			results := []PollResult{}
 			err = json.Unmarshal(body, &results)
 			if err != nil {
-				sugar.Panic(err)
+				sugar.Error(err)
+				continue
 			}
 
 			if len(results[0].Result) != 0 {
