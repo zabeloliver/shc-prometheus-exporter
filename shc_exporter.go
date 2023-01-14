@@ -2,8 +2,10 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -12,15 +14,17 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
 
+	influxdb2 "github.com/influxdata/influxdb-client-go"
+	"github.com/influxdata/influxdb-client-go/api"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/viper"
 )
 
@@ -155,7 +159,7 @@ func unsubscripe() {
 	sugar.Info("Unsubscribe Response: ", rpc)
 }
 
-func poll(metrics *metrics) {
+func poll() {
 	sugar.Info("Starting Long Polling")
 	go func() {
 		for {
@@ -197,32 +201,40 @@ func poll(metrics *metrics) {
 						case "PowerMeter":
 							{
 								sugar.Infof("%s %s Total: %f, Actual: %f, Room: %s", event.Id, event.DeviceId, event.State["energyConsumption"], event.State["powerConsumption"], r)
-								metrics.energyConsumption.WithLabelValues(event.DeviceId, r).Set(event.State["energyConsumption"].(float64))
-								metrics.powerConsumption.WithLabelValues(event.DeviceId, r).Set(event.State["powerConsumption"].(float64))
+								//metrics.energyConsumption.WithLabelValues(event.DeviceId, r).Set(event.State["energyConsumption"].(float64))
+								//metrics.powerConsumption.WithLabelValues(event.DeviceId, r).Set(event.State["powerConsumption"].(float64))
 							}
 						case "ShutterControl":
 							{
 								sugar.Infof("%s %s ShutterLevel: %f, Room: %s", event.Id, event.DeviceId, event.State["level"], r)
-								metrics.shutterLevel.WithLabelValues(event.DeviceId, r).Set(event.State["level"].(float64))
+								//metrics.shutterLevel.WithLabelValues(event.DeviceId, r).Set(event.State["level"].(float64))
 							}
 						case "HumidityLevel":
 							{
 								sugar.Infof("%s %s, Humidity: %f, Room: %s", event.Id, event.DeviceId, event.State["humidity"], r)
-								metrics.roomHumidity.WithLabelValues(event.DeviceId, r).Set(event.State["humidity"].(float64))
+								//metrics.roomHumidity.WithLabelValues(event.DeviceId, r).Set(event.State["humidity"].(float64))
 							}
 						case "TemperatureLevel":
 							{
 								sugar.Infof("%s %s, Temperature: %f, Room: %s", event.Id, event.DeviceId, event.State["temperature"], r)
-								metrics.roomTemperature.WithLabelValues(event.DeviceId, r).Set(event.State["temperature"].(float64))
+								//metrics.roomTemperature.WithLabelValues(event.DeviceId, r).Set(event.State["temperature"].(float64))
 							}
 						case "PowerSwitch":
 							{
 								s := event.State["switchState"]
 								sugar.Infof("%s %s, State: %s, Room: %s", event.Id, event.DeviceId, s, r)
+								var line string
 								if s == "ON" {
-									metrics.switchState.WithLabelValues(event.DeviceId, r).Set(1)
+									line = fmt.Sprintf("switch,deviceId=%s,room=%s state=%d %d", event.DeviceId, r, 1, time.Now().UTC().UnixNano())
+									//metrics.switchState.WithLabelValues(event.DeviceId, r).Set(1)
 								} else {
-									metrics.switchState.WithLabelValues(event.DeviceId, r).Set(0)
+									line = fmt.Sprintf("switch,deviceId=%s,room=%s state=%d %d", event.DeviceId, r, 0, time.Now().UTC().UnixNano())
+									//metrics.switchState.WithLabelValues(event.DeviceId, r).Set(0)
+								}
+								sugar.Info(line)
+								err = influxApi.WriteRecord(context.Background(), line)
+								if err != nil {
+									sugar.Panic(err)
 								}
 							}
 						default:
@@ -266,6 +278,8 @@ var (
 	apiClient       *http.Client
 	shcApiUrl       string
 	shcPollUrl      string
+	influxApi       api.WriteAPIBlocking
+	wg              sync.WaitGroup
 )
 
 func NewLogger() (*zap.Logger, error) {
@@ -370,17 +384,13 @@ func main() {
 	devices := getDevices()
 	deviceMapping = createMapping(rooms, devices)
 
+	wg.Add(1)
 	//updateMetrics(client, thermos, m)
-	//subscripe()
-	//poll(m)
-
-	// Expose metrics and custom registry via an HTTP server
-	// using the HandleFor function. "/metrics" is the usual endpoint for that.
-	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{Registry: reg}))
-	metricsPath := ":" + viper.GetString("metrics.port")
-	sugar.Infof("Metrics served at: %v", metricsPath)
-	err = http.ListenAndServe(metricsPath, nil)
-	if err != nil {
-		sugar.Fatal(err)
-	}
+	subscripe()
+	poll()
+	// Create a new client using an InfluxDB server base URL and an authentication token
+	influxClient := influxdb2.NewClient("http://surface4pro.fritz.box:8086", "jJXTOtiQ_Y2Td3NfuNBuk3sbt2q0fCQeUt5JUiesg4ADocibifSodhiMeIuoiILdudylA4yJWYLvrcnnHXlIPw==")
+	// Use blocking write client for writes to desired bucket
+	influxApi = influxClient.WriteAPIBlocking("privat", "shc")
+	wg.Wait()
 }
