@@ -1,0 +1,45 @@
+{"level":"info","ts":1674385916.8250282,"caller":"influx-exporter/influx_exporter.go:134","msg":"Configuration from ../config.yaml: map[files:map[certificate:map[crt:client-cert.pem key:client-key.pem] certificates:map[crt:client-cert.pem key:../client-key.pem]] influxdb:map[bucket:shc host:http://surface4pro.fritz.box:8086 org:privat token:jJXTOtiQ_Y2Td3NfuNBuk3sbt2q0fCQeUt5JUiesg4ADocibifSodhiMeIuoiILdudylA4yJWYLvrcnnHXlIPw==] shc:map[host:https://shc.fritz.box polltimeout:30]]"}
+{"level":"info","ts":1674385916.8251588,"caller":"influx-exporter/influx_exporter.go:156","msg":"Starting Application"}
+{"level":"info","ts":1674385916.8251798,"caller":"influx-exporter/influx_exporter.go:157","msg":"Reading Crt-File"}
+{"level":"info","ts":1674385993.990217,"caller":"influx-exporter/influx_exporter.go:134","msg":"Configuration from ../config.yaml: map[files:map[certificate:map[crt:client-cert.pem key:client-key.pem] certificates:map[crt:../client-cert.pem key:../client-key.pem]] influxdb:map[bucket:shc host:http://surface4pro.fritz.box:8086 org:privat token:jJXTOtiQ_Y2Td3NfuNBuk3sbt2q0fCQeUt5JUiesg4ADocibifSodhiMeIuoiILdudylA4yJWYLvrcnnHXlIPw==] shc:map[host:https://shc.fritz.box polltimeout:30]]"}
+{"level":"info","ts":1674385993.990539,"caller":"influx-exporter/influx_exporter.go:156","msg":"Starting Application"}
+{"level":"info","ts":1674385993.99057,"caller":"influx-exporter/influx_exporter.go:157","msg":"Reading Crt-File"}
+{"level":"info","ts":1674386163.579382,"caller":"influx-exporter/influx_exporter.go:134","msg":"Configuration from ../config.yaml: map[files:map[certificate:map[crt:../client-cert.pem key:../client-key.pem]] influxdb:map[bucket:shc host:http://surface4pro.fritz.box:8086 org:privat token:jJXTOtiQ_Y2Td3NfuNBuk3sbt2q0fCQeUt5JUiesg4ADocibifSodhiMeIuoiILdudylA4yJWYLvrcnnHXlIPw==] shc:map[host:https://shc.fritz.box polltimeout:30]]"}
+{"level":"info","ts":1674386163.579638,"caller":"influx-exporter/influx_exporter.go:156","msg":"Starting Application"}
+{"level":"info","ts":1674386163.5797,"caller":"influx-exporter/influx_exporter.go:157","msg":"Reading Crt-File"}
+{"level":"info","ts":1674386163.579953,"caller":"influx-exporter/influx_exporter.go:162","msg":"Reading Key-File"}
+{"level":"info","ts":1674386163.580249,"caller":"shcClient/shcClient.go:31","msg":"Generating X509-KeyPair"}
+{"level":"info","ts":1674386164.099401,"caller":"shcClient/shcClient.go:92","msg":"Get List of Rooms: 9"}
+{"level":"info","ts":1674386164.160185,"caller":"shcClient/shcClient.go:105","msg":"Get List of Devices: 30"}
+{"level":"info","ts":1674386164.160458,"caller":"shcClient/shcClient.go:139","msg":"Subscribing to Polling"}
+{"level":"info","ts":1674386164.160598,"caller":"shcClient/shcClient.go:118","msg":"JsonRpc Request: {\"jsonrpc\":\"2.0\",\"method\":\"RE/subscribe\",\"params\":[\"com/bosch/sh/remote/*\",null]}"}
+{"level":"info","ts":1674386164.249962,"caller":"shcClient/shcClient.go:142","msg":"Subscription Polling ID: f44dd451j-228"}
+{"level":"info","ts":1674386164.250037,"caller":"shcClient/shcClient.go:158","msg":"Starting Long Polling"}
+{"level":"info","ts":1674386174.2680042,"caller":"influx-exporter/influx_exporter.go:178","msg":"Catch Keyboard interrupt"}
+{"level":"info","ts":1674386174.268078,"caller":"shcClient/shcClient.go:146","msg":"Unsubscribing from Polling"}
+{"level":"info","ts":1674386174.268111,"caller":"shcClient/shcClient.go:118","msg":"JsonRpc Request: {\"jsonrpc\":\"2.0\",\"method\":\"RE/unsubscribe\",\"params\":[\"f44dd451j-228\"]}"}
+{"level":"info","ts":1674386174.572756,"caller":"shcClient/shcClient.go:150","msg":"Unsubscribe Response: {2.0 }"}
+{"level":"info","ts":1674386267.928371,"caller":"influx-exporter/influx_exporter.go:131","msg":"Configuration from config.yaml: map[files:map[certificate:map[crt:client-cert.pem key:client-key.pem]] shc:map[host:localhost polltimeout:30]]"}
+{"level":"info","ts":1674386267.928478,"caller":"influx-exporter/influx_exporter.go:153","msg":"Starting Application"}
+{"level":"info","ts":1674386267.928498,"caller":"influx-exporter/influx_exporter.go:154","msg":"Reading Crt-File"}
+{"level":"fatal","ts":1674386267.928543,"caller":"influx-exporter/influx_exporter.go:157","msg":"open client-cert.pem: no such file or directory","stacktrace":"main.main\n\t/Users/oliver/Library/Mobile Documents/com~apple~CloudDocs/Documents/Source/shc_prometheus/main/influx-exporter/influx_exporter.go:157\nruntime.main\n\t/usr/local/Cellar/go/1.19.4/libexec/src/runtime/proc.go:250"}
+{"level":"info","ts":1674386318.537247,"caller":"influx-exporter/influx_exporter.go:128","msg":"open config.yaml: no such file or directory"}
+{"level":"info","ts":1674386318.54142,"caller":"influx-exporter/influx_exporter.go:134","msg":"Configuration from config.yaml: map[files:map[certificate:map[crt:client-cert.pem key:client-key.pem]] shc:map[host:localhost polltimeout:30]]"}
+{"level":"info","ts":1674386318.541466,"caller":"influx-exporter/influx_exporter.go:156","msg":"Starting Application"}
+{"level":"info","ts":1674386318.541485,"caller":"influx-exporter/influx_exporter.go:157","msg":"Reading Crt-File"}
+{"level":"fatal","ts":1674386318.541518,"caller":"influx-exporter/influx_exporter.go:160","msg":"open client-cert.pem: no such file or directory","stacktrace":"main.main\n\t/Users/oliver/Library/Mobile Documents/com~apple~CloudDocs/Documents/Source/shc_prometheus/main/influx-exporter/influx_exporter.go:160\nruntime.main\n\t/usr/local/Cellar/go/1.19.4/libexec/src/runtime/proc.go:250"}
+{"level":"info","ts":1674386346.943721,"caller":"influx-exporter/influx_exporter.go:128","msg":"No configuration file found. Using Default config"}
+{"level":"info","ts":1674386346.945042,"caller":"influx-exporter/influx_exporter.go:134","msg":"Configuration from config.yaml: map[files:map[certificate:map[crt:client-cert.pem key:client-key.pem]] shc:map[host:localhost polltimeout:30]]"}
+{"level":"info","ts":1674386346.945077,"caller":"influx-exporter/influx_exporter.go:156","msg":"Starting Application"}
+{"level":"info","ts":1674386346.945096,"caller":"influx-exporter/influx_exporter.go:157","msg":"Reading Crt-File"}
+{"level":"fatal","ts":1674386346.945128,"caller":"influx-exporter/influx_exporter.go:160","msg":"open client-cert.pem: no such file or directory","stacktrace":"main.main\n\t/Users/oliver/Library/Mobile Documents/com~apple~CloudDocs/Documents/Source/shc_prometheus/main/influx-exporter/influx_exporter.go:160\nruntime.main\n\t/usr/local/Cellar/go/1.19.4/libexec/src/runtime/proc.go:250"}
+{"level":"info","ts":1674386399.6361248,"caller":"influx-exporter/influx_exporter.go:128","msg":"No configuration file found. Using Default config"}
+{"level":"info","ts":1674386399.636519,"caller":"influx-exporter/influx_exporter.go:134","msg":"Configuration from map[files:map[certificate:map[crt:client-cert.pem key:client-key.pem]] shc:map[host:localhost polltimeout:30]]"}
+{"level":"info","ts":1674386399.6365519,"caller":"influx-exporter/influx_exporter.go:156","msg":"Starting Application"}
+{"level":"info","ts":1674386399.636569,"caller":"influx-exporter/influx_exporter.go:157","msg":"Reading Crt-File"}
+{"level":"fatal","ts":1674386399.6366022,"caller":"influx-exporter/influx_exporter.go:160","msg":"open client-cert.pem: no such file or directory","stacktrace":"main.main\n\t/Users/oliver/Library/Mobile Documents/com~apple~CloudDocs/Documents/Source/shc_prometheus/main/influx-exporter/influx_exporter.go:160\nruntime.main\n\t/usr/local/Cellar/go/1.19.4/libexec/src/runtime/proc.go:250"}
+{"level":"info","ts":1674386436.171375,"caller":"influx-exporter/influx_exporter.go:128","msg":"No configuration file found. Using Default config"}
+{"level":"info","ts":1674386436.171798,"caller":"influx-exporter/influx_exporter.go:134","msg":"Configuration from map[files:map[certificate:map[crt:client-cert.pem key:client-key.pem]] shc:map[host:localhost polltimeout:30]]"}
+{"level":"info","ts":1674386436.171833,"caller":"influx-exporter/influx_exporter.go:156","msg":"Starting Influx-Exporter"}
+{"level":"info","ts":1674386436.171851,"caller":"influx-exporter/influx_exporter.go:157","msg":"Reading Crt-File"}
+{"level":"fatal","ts":1674386436.171884,"caller":"influx-exporter/influx_exporter.go:160","msg":"open client-cert.pem: no such file or directory","stacktrace":"main.main\n\t/Users/oliver/Library/Mobile Documents/com~apple~CloudDocs/Documents/Source/shc_prometheus/main/influx-exporter/influx_exporter.go:160\nruntime.main\n\t/usr/local/Cellar/go/1.19.4/libexec/src/runtime/proc.go:250"}

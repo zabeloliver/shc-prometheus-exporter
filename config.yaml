@@ -1,0 +1,13 @@
+files:
+  certificate:
+    crt: "../client-cert.pem"
+    key: "../client-key.pem"
+
+shc:
+  host: https://shc.fritz.box
+
+influxdb:
+  token: jJXTOtiQ_Y2Td3NfuNBuk3sbt2q0fCQeUt5JUiesg4ADocibifSodhiMeIuoiILdudylA4yJWYLvrcnnHXlIPw==
+  bucket: shc
+  org: privat
+  host: http://surface4pro.fritz.box:8086
