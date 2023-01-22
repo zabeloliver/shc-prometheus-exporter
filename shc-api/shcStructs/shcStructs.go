@@ -1,4 +1,4 @@
-package main
+package shcStructs
 
 type Room struct {
 	//Type string `json:"@type"`
