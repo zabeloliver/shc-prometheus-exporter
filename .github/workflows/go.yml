@@ -25,7 +25,7 @@ jobs:
     - name: Build Executables
       run: | 
         #!/usr/bin/env bash
-        package_name="shc-exporter"
+        package_name="shc-prometheus-exporter"
 
         platforms=("windows/amd64" "darwin/amd64" "linux/amd64" "darwin/arm64")
 
@@ -45,28 +45,3 @@ jobs:
             exit 1
           fi
         done
-        ls -la
-    - uses: actions/upload-artifact@v3
-      with:
-        name: shc-windows
-        path: |
-          bin/shc-exporter-windows-amd64.exe
-        if-no-files-found: warn
-    - uses: actions/upload-artifact@v3
-      with:
-        name: shc-linux
-        path: |
-          bin/shc-exporter-linux-amd64
-        if-no-files-found: warn
-    - uses: actions/upload-artifact@v3
-      with:
-        name: shc-apple-intel
-        path: |
-          bin/shc-exporter-darwin-amd64
-        if-no-files-found: warn
-    - uses: actions/upload-artifact@v3
-      with:
-        name: shc-apple-arm
-        path: |
-          bin/shc-exporter-darwin-arm64
-        if-no-files-found: warn
